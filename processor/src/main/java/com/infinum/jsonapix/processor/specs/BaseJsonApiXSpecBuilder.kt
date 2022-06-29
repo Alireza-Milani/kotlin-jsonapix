@@ -38,11 +38,19 @@ internal abstract class BaseJsonApiXSpecBuilder {
             )
         )
 
-        params.add(
+        /*params.add(
             ParameterSpec.builder(
                 JsonApiConstants.Keys.ERRORS,
                 List::class.parameterizedBy(Error::class)
                     .copy(nullable = true)
+            ).defaultValue("%L", "null")
+                .build()
+        )*/
+
+        params.add(
+            ParameterSpec.builder(
+                JsonApiConstants.Keys.ERRORS,
+                Error::class.asClassName().copy(nullable = true)
             ).defaultValue("%L", "null")
                 .build()
         )
@@ -69,7 +77,7 @@ internal abstract class BaseJsonApiXSpecBuilder {
                 ).copy(nullable = true)
             )
         )
-        properties.add(errorsProperty())
+        properties.add(errorProperty())
 
         properties.add(
             Specs.getNamedPropertySpec(Links::class.asClassName(), JsonApiConstants.Keys.LINKS, true)
@@ -87,6 +95,15 @@ internal abstract class BaseJsonApiXSpecBuilder {
     private fun errorsProperty(): PropertySpec = PropertySpec.builder(
         JsonApiConstants.Keys.ERRORS,
         List::class.parameterizedBy(Error::class).copy(nullable = true),
+        KModifier.OVERRIDE
+    )
+        .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Keys.ERRORS))
+        .initializer(JsonApiConstants.Keys.ERRORS)
+        .build()
+
+    private fun errorProperty(): PropertySpec = PropertySpec.builder(
+        JsonApiConstants.Keys.ERRORS,
+        Error::class.asClassName().copy(nullable = true),
         KModifier.OVERRIDE
     )
         .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Keys.ERRORS))
