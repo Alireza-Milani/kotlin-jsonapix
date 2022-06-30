@@ -49,7 +49,7 @@ internal abstract class BaseJsonApiXSpecBuilder {
 
         params.add(
             ParameterSpec.builder(
-                JsonApiConstants.Keys.ERRORS,
+                JsonApiConstants.Keys.ERROR,
                 Error::class.asClassName().copy(nullable = true)
             ).defaultValue("%L", "null")
                 .build()
@@ -102,12 +102,12 @@ internal abstract class BaseJsonApiXSpecBuilder {
         .build()
 
     private fun errorProperty(): PropertySpec = PropertySpec.builder(
-        JsonApiConstants.Keys.ERRORS,
+        JsonApiConstants.Keys.ERROR,
         Error::class.asClassName().copy(nullable = true),
         KModifier.OVERRIDE
     )
-        .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Keys.ERRORS))
-        .initializer(JsonApiConstants.Keys.ERRORS)
+        .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Keys.ERROR))
+        .initializer(JsonApiConstants.Keys.ERROR)
         .build()
 
     private fun metaProperty(
