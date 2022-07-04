@@ -8,7 +8,14 @@ import com.squareup.kotlinpoet.asTypeName
 
 internal class PropertyTypesSeparator(private val classType: TypeSpec) {
 
+    /**
+     * The fields that have no relations
+     */
     private val primitiveFields = mutableListOf<PropertySpec>()
+
+    /**
+     * The fields that have relations
+     */
     private val compositeFields = mutableListOf<PropertySpec>()
 
     init {

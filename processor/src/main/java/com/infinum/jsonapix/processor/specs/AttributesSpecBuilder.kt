@@ -12,6 +12,9 @@ import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import kotlinx.serialization.Serializable
 
+/**
+ * Created data class according to data class's properties that have no relation annotation
+ */
 internal object AttributesSpecBuilder {
 
     private val serializableClassName = Serializable::class.asClassName()
@@ -37,9 +40,7 @@ internal object AttributesSpecBuilder {
             .addModifiers(KModifier.DATA)
             .addSuperinterface(Attributes::class.asClassName())
             .addAnnotation(serializableClassName)
-            .addAnnotation(
-                Specs.getSerialNameSpec(JsonApiConstants.Prefix.ATTRIBUTES.withName(type))
-            )
+            .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Prefix.ATTRIBUTES.withName(type)))
             .primaryConstructor(
                 FunSpec.constructorBuilder()
                     .addParameters(parameterSpecs)
@@ -59,14 +60,20 @@ internal object AttributesSpecBuilder {
         generatedName: String,
         attributes: List<PropertySpec>
     ): FunSpec {
-        val constructorString = attributes.joinToString(", ") {
+        val constructorString = attributes.joinToString(",\n  ") {
             "${it.name} = originalObject.${it.name}"
         }
         return FunSpec.builder(JsonApiConstants.Members.FROM_ORIGINAL_OBJECT)
             .addParameter(
                 ParameterSpec.builder("originalObject", originalClass).build()
             )
-            .addStatement("return %L($constructorString)", generatedName)
+            .addCode(
+                """
+                |return %L(
+                |  $constructorString
+                |)""".trimMargin(),
+                generatedName
+            )
             .build()
     }
 }
