@@ -130,6 +130,7 @@ internal object ResourceObjectSpecBuilder {
         return FileSpec.builder(className.packageName, generatedName)
             .addImport(JsonApiConstants.Packages.CORE_RESOURCES, JsonApiConstants.Imports.RESOURCE_IDENTIFIER)
             .addImport(JsonApiConstants.Packages.CORE_SHARED, JsonApiConstants.Imports.REQUIRE_NOT_NULL)
+            .addImport(JsonApiConstants.Packages.CORE_COMMON, JsonApiConstants.Imports.JSON_API_MISSING_EXCEPTION)
             .addType(
                 TypeSpec.classBuilder(generatedName)
                     .addSuperinterface(
@@ -180,7 +181,7 @@ internal object ResourceObjectSpecBuilder {
         )
 
         val codeBlockBuilder = CodeBlock.builder()
-        codeBlockBuilder.addStatement("return %T(", className).indent()
+        codeBlockBuilder.addStatement("return %N(", className.simpleName).indent()
         attributes.forEach {
             if (it.type.isNullable) {
                 codeBlockBuilder.addStatement(
@@ -213,20 +214,20 @@ internal object ResourceObjectSpecBuilder {
                 )
             }
             codeBlockBuilder.unindent()
-            codeBlockBuilder.addStatement("}?.${JsonApiConstants.Members.ORIGINAL}(included) as %T", it.value)
+            codeBlockBuilder.addStatement("}?.${JsonApiConstants.Members.ORIGINAL}(included) as %N", (it.value as ClassName).simpleName)
             if (it.value.isNullable) {
                 codeBlockBuilder.unindent().addStatement("},")
             } else {
                 codeBlockBuilder.unindent().addStatement(
-                    "} ?: throw %T(%S),",
-                    JsonApiXMissingArgumentException::class,
+                    "} ?: throw %N(%S),",
+                    JsonApiXMissingArgumentException::class.simpleName,
                     it.key
                 )
             }
         }
 
         manyRelationships.forEach {
-            codeBlockBuilder.addStatement("%N = relationships?.let { safeRelationships ->", it.key)
+            codeBlockBuilder.addStatement("%N = relationships.let { safeRelationships ->", it.key)
             codeBlockBuilder.indent().addStatement("included?.filter {")
             if (it.value.isNullable) {
                 codeBlockBuilder.indent().addStatement(
@@ -253,7 +254,7 @@ internal object ResourceObjectSpecBuilder {
                 )
             }
         }
-        codeBlockBuilder.addStatement(")")
+        codeBlockBuilder.unindent().addStatement(")")
 
         return builder.addCode(codeBlockBuilder.build().toString()).build()
     }

@@ -10,13 +10,13 @@ import com.infinum.jsonapix.processor.extensions.getAnnotationParameterValue
 import com.infinum.jsonapix.processor.specs.AttributesSpecBuilder
 import com.infinum.jsonapix.processor.specs.IncludedSpecBuilder
 import com.infinum.jsonapix.processor.specs.JsonApiXListSpecBuilder
-import com.infinum.jsonapix.processor.specs.jsonxextensions.JsonXExtensionsSpecBuilder
 import com.infinum.jsonapix.processor.specs.JsonApiXSpecBuilder
 import com.infinum.jsonapix.processor.specs.RelationshipsSpecBuilder
 import com.infinum.jsonapix.processor.specs.ResourceObjectSpecBuilder
 import com.infinum.jsonapix.processor.specs.TypeAdapterFactorySpecBuilder
 import com.infinum.jsonapix.processor.specs.TypeAdapterListSpecBuilder
 import com.infinum.jsonapix.processor.specs.TypeAdapterSpecBuilder
+import com.infinum.jsonapix.processor.specs.jsonxextensions.JsonXExtensionsSpecBuilder
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.metadata.classinspectors.ElementsClassInspector
@@ -81,10 +81,12 @@ public class JsonApiProcessor : AbstractProcessor() {
 
         collector.addCustomMetas(customMetas)
 
+        // get elements that is annotated with JsonApiX
         val elements = roundEnv?.getElementsAnnotatedWith(JsonApiX::class.java)
         // process method might get called multiple times and not finding elements is a possibility
-        if (elements?.isNullOrEmpty() == false) {
+        if (!elements.isNullOrEmpty()) {
             elements.forEach {
+                // check this element just is class kind
                 if (it.kind != ElementKind.CLASS) {
                     processingEnv.messager.printMessage(
                         Diagnostic.Kind.ERROR,
@@ -93,6 +95,7 @@ public class JsonApiProcessor : AbstractProcessor() {
                     return true
                 }
 
+                // get type from JsonApiX annotation property, this value is class lowercase name
                 val type = it.getAnnotationParameterValue<JsonApiX, String> { type }
                 processAnnotation(it, type)
             }
@@ -107,29 +110,83 @@ public class JsonApiProcessor : AbstractProcessor() {
 
     @SuppressWarnings("LongMethod")
     private fun processAnnotation(element: Element, type: String) {
+        /**
+         * Simple name of class
+         */
         val className = element.simpleName.toString()
+
+        /**
+         * Path of package that generated classes are placed in it
+         */
         val generatedPackage = processingEnv.elementUtils.getPackageOf(element).toString()
-        val kaptKotlinGeneratedDir =
-            processingEnv.options[JsonApiConstants.KAPT_KOTLIN_GENERATED_OPTION_NAME]
+
+        /**
+         * path of directory that related package is placed in it
+         */
+        val kaptKotlinGeneratedDir = processingEnv.options[JsonApiConstants.KAPT_KOTLIN_GENERATED_OPTION_NAME]
 
         val metadata = element.getAnnotation(Metadata::class.java)
+
+        /**
+         * Keep all of specification about annotated class
+         */
         val typeSpec = metadata.toKmClass().toTypeSpec(
             ElementsClassInspector.create(processingEnv.elementUtils, processingEnv.typeUtils)
         )
 
+        /**
+         * Keep created class name e.g. **Person**
+         */
         val inputDataClass = ClassName(generatedPackage, className)
-        val generatedJsonWrapperName = JsonApiConstants.Prefix.JSON_API_X.withName(className)
-        val generatedJsonWrapperListName = JsonApiConstants.Prefix.JSON_API_X_LIST.withName(className)
-        val generatedResourceObjectName =
-            JsonApiConstants.Prefix.RESOURCE_OBJECT.withName(className)
 
+        /**
+         * Name of generated json api class e.g. **JsonApiX_Person**
+         */
+        val generatedJsonWrapperName = JsonApiConstants.Prefix.JSON_API_X.withName(className)
+
+        /**
+         * Name of generated json api list class e.g. **JsonApiXList_Person**
+         */
+        val generatedJsonWrapperListName = JsonApiConstants.Prefix.JSON_API_X_LIST.withName(className)
+
+        /**
+         * Name of generated json api resource class e.g. **ResourceObject_Person**
+         */
+        val generatedResourceObjectName = JsonApiConstants.Prefix.RESOURCE_OBJECT.withName(className)
+
+        /**
+         * Keep created json api class name that is filled with spec of target class *Person*
+         */
         val jsonWrapperClassName = ClassName(generatedPackage, generatedJsonWrapperName)
+
+        /**
+         * Keep created json api list class name that is filled with spec of target class *Person*
+         */
         val jsonWrapperListClassName = ClassName(generatedPackage, generatedJsonWrapperListName)
+
+        /**
+         * Keep created json api resource class name that is filled with spec of target class *Person*
+         */
         val resourceObjectClassName = ClassName(generatedPackage, generatedResourceObjectName)
 
+        /**
+         * Keep created attribution class name that is filled with spec of target class *Person* e.g. **Attributes_Person**
+         */
         var attributesClassName: ClassName? = null
+
+        /**
+         * Keep created relationships class name that is filled with spec of target class *Person* e.g. **Relationships_Person**
+         */
         var relationshipsClassName: ClassName? = null
+
+        /**
+         * Keep all of properties that have relations or not
+         */
         val membersSeparator = PropertyTypesSeparator(typeSpec)
+
+        /**
+         * Keep properties that have no relations
+         */
         val primitives = membersSeparator.getPrimitiveProperties()
 
         if (primitives.isNotEmpty()) {
@@ -140,14 +197,16 @@ public class JsonApiProcessor : AbstractProcessor() {
                     type
                 )
             val attributesFileSpec = FileSpec.builder(generatedPackage, attributesTypeSpec.name!!)
-                .addType(attributesTypeSpec).build()
+                .addType(attributesTypeSpec)
+                .build()
 
             attributesFileSpec.writeTo(File(kaptKotlinGeneratedDir!!))
 
-            val generatedAttributesObjectName =
-                JsonApiConstants.Prefix.ATTRIBUTES.withName(className)
-            attributesClassName =
-                ClassName(generatedPackage, generatedAttributesObjectName)
+            /**
+             * Name of generated attribution class e.g. **Attributes_Person**
+             */
+            val generatedAttributesObjectName = JsonApiConstants.Prefix.ATTRIBUTES.withName(className)
+            attributesClassName = ClassName(generatedPackage, generatedAttributesObjectName)
         }
 
         val oneRelationships = membersSeparator.getOneRelationships()
@@ -192,18 +251,17 @@ public class JsonApiProcessor : AbstractProcessor() {
 
         adapterFactoryCollector.add(inputDataClass)
 
-        val resourceFileSpec =
-            ResourceObjectSpecBuilder.build(
-                inputDataClass,
-                type,
-                primitives,
-                mapOf(*oneRelationships.map { it.name to it.type }.toTypedArray()),
-                mapOf(*manyRelationships.map { it.name to it.type }.toTypedArray())
-            )
-        val wrapperFileSpec =
-            JsonApiXSpecBuilder.build(inputDataClass, type, customMetas[type])
-        val wrapperListFileSpec =
-            JsonApiXListSpecBuilder.build(inputDataClass, type, customMetas[type])
+        val resourceFileSpec = ResourceObjectSpecBuilder.build(
+            inputDataClass,
+            type,
+            primitives,
+            mapOf(*oneRelationships.map { it.name to it.type }.toTypedArray()),
+            mapOf(*manyRelationships.map { it.name to it.type }.toTypedArray())
+        )
+
+        val wrapperFileSpec = JsonApiXSpecBuilder.build(inputDataClass, type, customMetas[type])
+        val wrapperListFileSpec = JsonApiXListSpecBuilder.build(inputDataClass, type, customMetas[type])
+
         val linksInfo = customLinks.firstOrNull { it.type == type }
 
         val typeAdapterFileSpec = TypeAdapterSpecBuilder.build(

@@ -79,6 +79,7 @@ object JsonApiConstants {
         const val TYPE_EXTRACTOR = "com.infinum.jsonapix.core.discriminators.TypeExtractor"
         const val CORE_RESOURCES = "com.infinum.jsonapix.core.resources"
         const val CORE_SHARED = "com.infinum.jsonapix.core.shared"
+        const val CORE_COMMON = "com.infinum.jsonapix.core.common"
     }
 
     object FileNames {
@@ -116,6 +117,8 @@ object JsonApiConstants {
         const val RESOURCE_IDENTIFIER = "ResourceIdentifier"
 
         const val REQUIRE_NOT_NULL = "requireNotNull"
+
+        const val JSON_API_MISSING_EXCEPTION = "JsonApiXMissingArgumentException"
     }
 
     object Statements {
