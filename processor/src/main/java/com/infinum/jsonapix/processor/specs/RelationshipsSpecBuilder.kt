@@ -93,12 +93,15 @@ internal object RelationshipsSpecBuilder {
                 constructorStringBuilder.append(
                     """
                     |${property.name} = originalObject.${property.name}?.let {
-                    |    %T(%T(%L)) 
+                    |    %T(%T(%L, it.id())) 
                     |  }""".trimMargin()
                 )
             } else {
                 constructorStringBuilder.append(
-                    "${property.name} = %T(%T(%L))"
+                    """
+                    |${property.name} = originalObject.${property.name}.let {
+                    |    %T(%T(%L, it.id())) 
+                    |  }""".trimMargin()
                 )
             }
 
@@ -118,14 +121,14 @@ internal object RelationshipsSpecBuilder {
                 constructorStringBuilder.append(
                     """
                     |${property.name} = originalObject.${property.name}?.let {
-                    |    %T(it.map { %T(%L) }) 
+                    |    %T(it.map { %T(%L, it.id()) }) 
                     |  }""".trimMargin()
                 )
             } else {
                 constructorStringBuilder.append(
                     """
                     |${property.name} = %T(originalObject.${property.name}.map {
-                    |    %T(%L)
+                    |    %T(%L, it.id())
                     |  })""".trimMargin()
                 )
             }
