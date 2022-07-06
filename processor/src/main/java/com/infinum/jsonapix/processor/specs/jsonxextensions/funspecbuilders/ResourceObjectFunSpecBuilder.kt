@@ -4,6 +4,9 @@ import com.infinum.jsonapix.core.common.JsonApiConstants
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FunSpec
 
+/**
+ * Created function *toResourceObject* according to json model
+ */
 internal object ResourceObjectFunSpecBuilder {
 
     fun build(
@@ -12,28 +15,31 @@ internal object ResourceObjectFunSpecBuilder {
         attributesClass: ClassName?,
         relationshipsClass: ClassName?
     ): FunSpec {
-        val returnStatement = StringBuilder("return %T(")
+        val returnStatement = StringBuilder()
         val builderArgs = mutableListOf<Any>(resourceObjectClass)
 
-        returnStatement.append("id = (this as? ")
-            .append("JsonApiModel")
-            .append(")?.let { this.id() } ?: \"0\", ")
+        returnStatement.append("""
+            |return %T(
+            |  id = (this as? JsonApiModel)?.let { this.id() } ?: "0",  
+            |""".trimMargin())
 
         if (attributesClass != null) {
             returnStatement.append(
-                "attributes = %T.${JsonApiConstants.Members.FROM_ORIGINAL_OBJECT}(this)"
+                "  attributes = %T.${JsonApiConstants.Members.FROM_ORIGINAL_OBJECT}(this)"
             )
             builderArgs.add(attributesClass)
         }
 
         if (relationshipsClass != null) {
             if (attributesClass != null) {
-                returnStatement.append(", ")
+                returnStatement.appendLine(", ")
             }
             returnStatement.append(
-                "relationships = %T.${JsonApiConstants.Members.FROM_ORIGINAL_OBJECT}(this)"
+                "  relationships = %T.${JsonApiConstants.Members.FROM_ORIGINAL_OBJECT}(this)\n"
             )
             builderArgs.add(relationshipsClass)
+        } else {
+            returnStatement.append("\n")
         }
 
         returnStatement.append(")")

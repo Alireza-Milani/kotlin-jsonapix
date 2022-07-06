@@ -4,6 +4,9 @@ import com.infinum.jsonapix.core.common.JsonApiConstants
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FunSpec
 
+/**
+ * Created function *toJsonApiX* according to json model
+ */
 internal object WrapperFunSpecBuilder {
 
     fun build(

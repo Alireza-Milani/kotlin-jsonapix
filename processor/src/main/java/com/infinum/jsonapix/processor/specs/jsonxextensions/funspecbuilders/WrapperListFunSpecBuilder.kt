@@ -6,6 +6,9 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.asClassName
 
+/**
+ * Created function *toJsonApiXList* according to json model
+ */
 internal object WrapperListFunSpecBuilder {
 
     fun build(
