@@ -5,12 +5,14 @@ import com.infinum.jsonapix.core.adapters.TypeAdapter
 import com.infinum.jsonapix.core.common.JsonApiConstants
 import com.infinum.jsonapix.core.common.JsonApiConstants.Prefix.withName
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.withIndent
 
 public object TypeAdapterListSpecBuilder {
 
@@ -73,47 +75,68 @@ public object TypeAdapterListSpecBuilder {
             .addModifiers(KModifier.OVERRIDE)
             .addParameter("input", Iterable::class.asClassName().parameterizedBy(className))
             .returns(String::class)
-            .addStatement(
-                "return input.%N(%N(), %N(), %N(), %N())",
-                JsonApiConstants.Members.JSONX_SERIALIZE,
-                JsonApiConstants.Members.ROOT_LINKS,
-                JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
-                JsonApiConstants.Members.RELATIONSHIPS_LINKS,
-                JsonApiConstants.Keys.META
+            .addCode(
+                CodeBlock.builder().apply {
+                    add("return input.%N(\n", JsonApiConstants.Members.JSONX_SERIALIZE).indent()
+                    add(
+                        "%N(), %N(), %N(), %N()\n",
+                        JsonApiConstants.Members.ROOT_LINKS,
+                        JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
+                        JsonApiConstants.Members.RELATIONSHIPS_LINKS,
+                        JsonApiConstants.Keys.META
+                    )
+                    unindent()
+                    add(")")
+                }.build()
             )
 
             .build()
     }
 
     private fun convertFromStringFunSpec(className: ClassName): FunSpec {
+        val builder = CodeBlock.builder().apply {
+            addStatement(
+                "val data = input.%N<%T>(",
+                JsonApiConstants.Members.JSONX_LIST_DESERIALIZE,
+                className
+            ).withIndent {
+                addStatement(
+                    "%N(), %N(), %N(), %N()",
+                    JsonApiConstants.Members.ROOT_LINKS,
+                    JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
+                    JsonApiConstants.Members.RELATIONSHIPS_LINKS,
+                    JsonApiConstants.Keys.META
+                )
+            }
+            addStatement(")")
+            addStatement("")
+
+            addStatement("val original = data.${JsonApiConstants.Members.ORIGINAL}")
+            addStatement("data.data?.let { resourceData ->").withIndent {
+                addStatement("original.zip(resourceData) { model, resource ->").withIndent {
+                    addStatement("(model as? %T)?.let { safeModel ->", JsonApiModel::class).withIndent {
+                        addStatement("safeModel.setId(resource.id)")
+                        addStatement("safeModel.setRootLinks(data.links)")
+                        addStatement("safeModel.setResourceLinks(resource.links)")
+                        addStatement("safeModel.setMeta(data.meta)")
+                        addStatement("resource.relationshipsLinks()?.let {").withIndent {
+                            addStatement("relationshipLinks -> safeModel.setRelationshipsLinks(relationshipLinks)")
+                        }
+                        addStatement("}")
+                    }
+                    addStatement("}")
+                }
+                addStatement("}")
+            }
+            addStatement("}")
+            addStatement("return original")
+        }
+
         return FunSpec.builder(JsonApiConstants.Members.CONVERT_FROM_STRING)
             .addModifiers(KModifier.OVERRIDE)
             .addParameter("input", String::class)
             .returns(Iterable::class.asClassName().parameterizedBy(className))
-            .addStatement(
-                "val data = input.%N<%T>(%N(), %N(), %N(), %N())",
-                JsonApiConstants.Members.JSONX_LIST_DESERIALIZE,
-                className,
-                JsonApiConstants.Members.ROOT_LINKS,
-                JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
-                JsonApiConstants.Members.RELATIONSHIPS_LINKS,
-                JsonApiConstants.Keys.META
-            )
-            .addStatement("val original = data.${JsonApiConstants.Members.ORIGINAL}")
-            .addStatement("data.data?.let { resourceData ->")
-            .addStatement("original.zip(resourceData) { model, resource ->")
-            .addStatement("(model as? %T)?.let { safeModel ->", JsonApiModel::class)
-            .addStatement("safeModel.setId(resource.id)")
-            .addStatement("safeModel.setRootLinks(data.links)")
-            .addStatement("safeModel.setResourceLinks(resource.links)")
-            .addStatement("safeModel.setMeta(data.meta)")
-            .addStatement("resource.relationshipsLinks()?.let {")
-            .addStatement("relationshipLinks -> safeModel.setRelationshipsLinks(relationshipLinks)")
-            .addStatement("}")
-            .addStatement("}")
-            .addStatement("}")
-            .addStatement("}")
-            .addStatement("return original")
+            .addCode(builder.build())
             .build()
     }
 

@@ -22,6 +22,9 @@ import com.squareup.kotlinpoet.asTypeName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
+/**
+ * Created data class according to data class's properties that have relation annotation
+ */
 internal object RelationshipsSpecBuilder {
 
     private val serializableClassName = Serializable::class.asClassName()
@@ -54,34 +57,21 @@ internal object RelationshipsSpecBuilder {
             }
         )
 
-        val params = mapPropertiesToParams(properties)
+        val parameterSpecs = mapPropertiesToParams(properties)
 
         return TypeSpec.classBuilder(generatedName)
             .addModifiers(KModifier.DATA)
             .addSuperinterface(Relationships::class)
             .addAnnotation(serializableClassName)
-            .addAnnotation(
-                Specs.getSerialNameSpec(
-                    JsonApiConstants.Prefix.RELATIONSHIPS.withName(
-                        type
-                    )
-                )
-            )
+            .addAnnotation(Specs.getSerialNameSpec(JsonApiConstants.Prefix.RELATIONSHIPS.withName(type)))
             .primaryConstructor(
                 FunSpec.constructorBuilder()
-                    .addParameters(params)
+                    .addParameters(parameterSpecs)
                     .build()
             )
             .addType(
                 TypeSpec.companionObjectBuilder()
-                    .addFunction(
-                        fromOriginalObjectSpec(
-                            className,
-                            generatedName,
-                            oneRelationships,
-                            manyRelationships
-                        )
-                    )
+                    .addFunction(fromOriginalObjectSpec(className, generatedName, oneRelationships, manyRelationships))
                     .build()
             )
             .addProperties(properties)
@@ -101,37 +91,52 @@ internal object RelationshipsSpecBuilder {
         oneRelationships.forEachIndexed { index, property ->
             if (property.type.isNullable) {
                 constructorStringBuilder.append(
-                    "${property.name} = originalObject.${property.name}?.let { %T(%T(%L)) }"
+                    """
+                    |${property.name} = originalObject.${property.name}?.let {
+                    |    %T(%T(%L, it.id())) 
+                    |  }""".trimMargin()
                 )
             } else {
-                constructorStringBuilder.append("${property.name} = %T(%T(%L))")
+                constructorStringBuilder.append(
+                    """
+                    |${property.name} = originalObject.${property.name}.let {
+                    |    %T(%T(%L, it.id())) 
+                    |  }""".trimMargin()
+                )
             }
 
             builderArgs.add(OneRelationshipMember::class.asClassName())
             builderArgs.add(ResourceIdentifier::class.asClassName())
             builderArgs.add(getTypeOfRelationship(property))
-            if (index != oneRelationships.lastIndex ||
+            if (
+                index != oneRelationships.lastIndex ||
                 (index == oneRelationships.lastIndex && manyRelationships.isNotEmpty())
             ) {
-                constructorStringBuilder.append(", ")
+                constructorStringBuilder.append(",\n  ")
             }
         }
 
         manyRelationships.forEachIndexed { index, property ->
             if (property.type.isNullable) {
                 constructorStringBuilder.append(
-                    "${property.name} = originalObject.${property.name}?.let { %T(it.map { %T(%L) }) }"
+                    """
+                    |${property.name} = originalObject.${property.name}?.let {
+                    |    %T(it.map { %T(%L, it.id()) }) 
+                    |  }""".trimMargin()
                 )
             } else {
                 constructorStringBuilder.append(
-                    "${property.name} = %T(originalObject.${property.name}!!.map { %T(%L) })"
+                    """
+                    |${property.name} = %T(originalObject.${property.name}.map {
+                    |    %T(%L, it.id())
+                    |  })""".trimMargin()
                 )
             }
             builderArgs.add(ManyRelationshipMember::class.asClassName())
             builderArgs.add(ResourceIdentifier::class.asClassName())
             builderArgs.add(getTypeOfRelationship(property))
             if (index != manyRelationships.lastIndex) {
-                constructorStringBuilder.append(", ")
+                constructorStringBuilder.append(",\n  ")
             }
         }
 
@@ -139,7 +144,13 @@ internal object RelationshipsSpecBuilder {
             .addParameter(
                 ParameterSpec.builder("originalObject", originalClass).build()
             )
-            .addStatement("return %L($constructorStringBuilder)", *builderArgs.toTypedArray())
+            .addCode(
+                """
+                |return %L(
+                |  $constructorStringBuilder
+                |)""".trimMargin(),
+                *builderArgs.toTypedArray()
+            )
             .build()
     }
 
@@ -147,27 +158,37 @@ internal object RelationshipsSpecBuilder {
         oneRelationships: List<PropertySpec>,
         manyRelationships: List<PropertySpec>
     ): PropertySpec {
-        var returnStatement = "mapOf("
-        oneRelationships.forEach {
+        var returnStatement = "mapOf(\n  "
+        oneRelationships.forEachIndexed { index, it ->
             returnStatement += if (it.type.isNullable) {
-                "\"${it.name}\" to ${it.name}?.links, "
+                "\"${it.name}\" to ${it.name}?.links"
             } else {
-                "\"${it.name}\" to ${it.name}.links, "
+                "\"${it.name}\" to ${it.name}.links"
+            }
+
+            if (
+                index != oneRelationships.lastIndex ||
+                (index == oneRelationships.lastIndex && manyRelationships.isNotEmpty())
+            ) {
+                returnStatement += (",\n  ")
             }
         }
-        manyRelationships.forEach {
+        manyRelationships.forEachIndexed { index, it ->
             returnStatement += if (it.type.isNullable) {
-                "\"${it.name}\" to ${it.name}?.links, "
+                "\"${it.name}\" to ${it.name}?.links"
             } else {
-                "\"${it.name}\" to ${it.name}.links, "
+                "\"${it.name}\" to ${it.name}.links"
+            }
+
+            if (index != manyRelationships.lastIndex) {
+                returnStatement += (",\n  ")
             }
         }
-        returnStatement += ")"
+        returnStatement += "\n)"
 
         val builder = PropertySpec.builder(
             JsonApiConstants.Keys.LINKS,
-            Map::class
-                .asClassName()
+            Map::class.asClassName()
                 .parameterizedBy(
                     String::class.asTypeName(),
                     Links::class.asTypeName().copy(nullable = true)

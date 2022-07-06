@@ -6,6 +6,9 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.asClassName
 
+/**
+ * Created function *toJsonApiXList* according to json model
+ */
 internal object WrapperListFunSpecBuilder {
 
     fun build(
@@ -16,12 +19,14 @@ internal object WrapperListFunSpecBuilder {
         val builderArgs =
             mutableListOf<Any>(wrapperClass)
         val returnStatement = StringBuilder(
-            "return %T(data = map { it.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}() }"
+            """
+            |return %T(
+            |  data = map { it.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}() }""".trimMargin()
         )
 
         if (includedListStatement != null) {
-            returnStatement.append(", ")
-            returnStatement.append("included = $includedListStatement")
+            returnStatement.appendLine(", ")
+            returnStatement.append("  included = $includedListStatement")
         }
         returnStatement.append(")")
         return FunSpec.builder(JsonApiConstants.Members.JSONX_WRAPPER_LIST_GETTER)

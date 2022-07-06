@@ -4,6 +4,9 @@ import com.infinum.jsonapix.core.common.JsonApiConstants
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FunSpec
 
+/**
+ * Created function *toJsonApiX* according to json model
+ */
 internal object WrapperFunSpecBuilder {
 
     fun build(
@@ -14,18 +17,20 @@ internal object WrapperFunSpecBuilder {
         val builderArgs =
             mutableListOf<Any>(wrapperClass)
         val returnStatement = StringBuilder(
-            "return %T(data = this.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}()"
+            """
+            |return %T(
+            |  data = this.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}()""".trimMargin()
         )
 
         if (includedListStatement != null) {
-            returnStatement.append(", ")
-            returnStatement.append("included = $includedListStatement")
+            returnStatement.appendLine(", ")
+            returnStatement.append("  included = $includedListStatement")
         }
         returnStatement.append(")")
         return FunSpec.builder(JsonApiConstants.Members.JSONX_WRAPPER_GETTER)
             .receiver(originalClass)
             .returns(wrapperClass)
-            .addStatement(
+            .addCode(
                 format = returnStatement.toString(),
                 args = builderArgs.toTypedArray()
             )

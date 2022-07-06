@@ -15,6 +15,9 @@ internal object Specs {
 
     private val transientClassName = Transient::class.asClassName()
 
+    /**
+     * Set SerialName annotation before property `@SerialName`
+     */
     fun getSerialNameSpec(name: String): AnnotationSpec =
         AnnotationSpec.builder(SerialName::class)
             .addMember(JsonApiConstants.SERIAL_NAME_FORMAT, name)

@@ -8,12 +8,17 @@ import com.infinum.jsonapix.processor.specs.jsonxextensions.providers.SerializeF
 import com.infinum.jsonapix.processor.specs.jsonxextensions.providers.SerializeFunSpecMemberProvider.jsonApiListWrapperMember
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.withIndent
 import kotlinx.serialization.PolymorphicSerializer
 
+/**
+ * Created function *toJsonApiXString* according to json list model
+ */
 internal object SerializeListFunSpecBuilder {
 
     fun build(originalClass: ClassName): FunSpec {
@@ -36,13 +41,18 @@ internal object SerializeListFunSpecBuilder {
                     .build()
             )
             .addStatement("val jsonX = this.%M()", jsonApiListWrapperMember)
-            .addStatement(
-                "val discriminator = %T(jsonX.data.first().type, %N, %N, %N, %N)",
-                JsonApiListDiscriminator::class.asClassName(),
-                JsonApiConstants.Members.ROOT_LINKS,
-                JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
-                JsonApiConstants.Members.RELATIONSHIPS_LINKS,
-                JsonApiConstants.Keys.META
+            .addCode(
+                CodeBlock.builder().apply {
+                    addStatement("val discriminator = %T(", JsonApiListDiscriminator::class.asClassName()).withIndent {
+                        addStatement(
+                            "jsonX.data.first().type, %N, %N, %N, %N", JsonApiConstants.Members.ROOT_LINKS,
+                            JsonApiConstants.Members.RESOURCE_OBJECT_LINKS,
+                            JsonApiConstants.Members.RELATIONSHIPS_LINKS,
+                            JsonApiConstants.Keys.META
+                        )
+                    }
+                    addStatement(")")
+                }.build()
             )
             .addStatement(
                 "val jsonString = %M.%M(%T(%T::class), jsonX)",

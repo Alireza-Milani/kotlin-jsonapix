@@ -13,11 +13,13 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
+import com.squareup.kotlinpoet.withIndent
 import kotlinx.serialization.Serializable
 
 internal object ResourceObjectSpecBuilder {
@@ -130,6 +132,8 @@ internal object ResourceObjectSpecBuilder {
         return FileSpec.builder(className.packageName, generatedName)
             .addImport(JsonApiConstants.Packages.CORE_RESOURCES, JsonApiConstants.Imports.RESOURCE_IDENTIFIER)
             .addImport(JsonApiConstants.Packages.CORE_SHARED, JsonApiConstants.Imports.REQUIRE_NOT_NULL)
+            .addImport(JsonApiConstants.Packages.CORE_COMMON, JsonApiConstants.Imports.JSON_API_MISSING_EXCEPTION)
+            .addImport("com.infinum.jsonapix.core", "JsonApiModel")
             .addType(
                 TypeSpec.classBuilder(generatedName)
                     .addSuperinterface(
@@ -180,7 +184,7 @@ internal object ResourceObjectSpecBuilder {
         )
 
         val codeBlockBuilder = CodeBlock.builder()
-        codeBlockBuilder.addStatement("return %T(", className).indent()
+        codeBlockBuilder.addStatement("return %N(", className.simpleName).indent()
         attributes.forEach {
             if (it.type.isNullable) {
                 codeBlockBuilder.addStatement(
@@ -199,61 +203,91 @@ internal object ResourceObjectSpecBuilder {
         }
 
         oneRelationships.forEach {
-            codeBlockBuilder.addStatement("%N = relationships?.let { safeRelationships ->", it.key)
-            codeBlockBuilder.indent().addStatement("included?.first {")
-            if (it.value.isNullable) {
-                codeBlockBuilder.indent().addStatement(
-                    "safeRelationships.%N?.data == ResourceIdentifier(it.type, it.id)",
-                    it.key
-                )
-            } else {
-                codeBlockBuilder.indent().addStatement(
-                    "safeRelationships.%N.data == ResourceIdentifier(it.type, it.id)",
-                    it.key
-                )
+            codeBlockBuilder.addStatement("%N = relationships?.let { safeRelationships ->", it.key).withIndent {
+                codeBlockBuilder.addStatement("val dataIncluded =  included?.first {")
+                if (it.value.isNullable) {
+                    codeBlockBuilder.indent().addStatement(
+                        "safeRelationships.%N?.data == ResourceIdentifier(it.type, it.id)",
+                        it.key
+                    )
+                } else {
+                    codeBlockBuilder.indent().addStatement(
+                        "safeRelationships.%N.data == ResourceIdentifier(it.type, it.id)",
+                        it.key
+                    )
+                }
             }
-            codeBlockBuilder.unindent()
-            codeBlockBuilder.addStatement("}?.${JsonApiConstants.Members.ORIGINAL}(included) as %T", it.value)
+
+            codeBlockBuilder.addStatement("}")
+            codeBlockBuilder.addStatement("")
+
+            codeBlockBuilder.addStatement(
+                "(dataIncluded?.${JsonApiConstants.Members.ORIGINAL}(included) as %N).also {",
+                (it.value as ClassName).simpleName
+            ).withIndent {
+                addStatement("(it as? %N)?.let {", "JsonApiModel").withIndent {
+                    addStatement("it.setId(dataIncluded.id)")
+                }
+
+                codeBlockBuilder.addStatement("}")
+            }
+
+            codeBlockBuilder.addStatement("}")
             if (it.value.isNullable) {
                 codeBlockBuilder.unindent().addStatement("},")
             } else {
                 codeBlockBuilder.unindent().addStatement(
-                    "} ?: throw %T(%S),",
-                    JsonApiXMissingArgumentException::class,
+                    "} ?: throw %N(%S),",
+                    JsonApiXMissingArgumentException::class.simpleName,
                     it.key
                 )
             }
         }
 
         manyRelationships.forEach {
-            codeBlockBuilder.addStatement("%N = relationships?.let { safeRelationships ->", it.key)
-            codeBlockBuilder.indent().addStatement("included?.filter {")
-            if (it.value.isNullable) {
-                codeBlockBuilder.indent().addStatement(
-                    "safeRelationships.%N?.data?.contains(ResourceIdentifier(it.type, it.id)) == true",
-                    it.key
-                )
-            } else {
-                codeBlockBuilder.indent().addStatement(
-                    "safeRelationships.%N.data.contains(ResourceIdentifier(it.type, it.id))",
-                    it.key
-                )
+            codeBlockBuilder.addStatement("%N = relationships.let { safeRelationships ->", it.key).withIndent {
+                codeBlockBuilder.indent().addStatement("val dataIncluded =  included?.filter {")
+                if (it.value.isNullable) {
+                    codeBlockBuilder.indent().addStatement(
+                        "safeRelationships.%N?.data?.contains(ResourceIdentifier(it.type, it.id)) == true",
+                        it.key
+                    )
+                } else {
+                    codeBlockBuilder.indent().addStatement(
+                        "safeRelationships.%N.data.contains(ResourceIdentifier(it.type, it.id))",
+                        it.key
+                    )
+                }
             }
-            codeBlockBuilder.unindent().addStatement(
-                "}?.map { it.${JsonApiConstants.Members.ORIGINAL}(included) } as %T",
-                it.value
-            )
+
+            codeBlockBuilder.addStatement("}")
+            codeBlockBuilder.addStatement("")
+            codeBlockBuilder.addStatement("dataIncluded?.map { resource ->").withIndent {
+                codeBlockBuilder.addStatement(
+                    "(resource.${JsonApiConstants.Members.ORIGINAL}(included) as %N).also {",
+                    ((it.value as ParameterizedTypeName).typeArguments.first() as ClassName).simpleName
+                ).withIndent {
+                    addStatement("(it as? %N)?.let {", "JsonApiModel").withIndent {
+                        addStatement("it.setId(resource.id)")
+                    }
+
+                    codeBlockBuilder.addStatement("}")
+                }
+                codeBlockBuilder.addStatement("}")
+            }
+            codeBlockBuilder.addStatement("}")
+
             if (it.value.isNullable) {
                 codeBlockBuilder.unindent().addStatement("},")
             } else {
                 codeBlockBuilder.unindent().addStatement(
-                    "} ?: throw %T(%S),",
-                    JsonApiXMissingArgumentException::class,
+                    "} ?: throw %N(%S),",
+                    JsonApiXMissingArgumentException::class.simpleName,
                     it.key
                 )
             }
         }
-        codeBlockBuilder.addStatement(")")
+        codeBlockBuilder.unindent().addStatement(")")
 
         return builder.addCode(codeBlockBuilder.build().toString()).build()
     }
