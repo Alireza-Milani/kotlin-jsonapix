@@ -207,7 +207,7 @@ internal object ResourceObjectSpecBuilder {
                 codeBlockBuilder.addStatement("val dataIncluded =  included?.first {")
                 if (it.value.isNullable) {
                     codeBlockBuilder.indent().addStatement(
-                        "safeRelationships.%N?.data == ResourceIdentifier(it.type, it.id)",
+                        "safeRelationships?.%N?.data == ResourceIdentifier(it.type, it.id)",
                         it.key
                     )
                 } else {
@@ -249,7 +249,7 @@ internal object ResourceObjectSpecBuilder {
                 codeBlockBuilder.indent().addStatement("val dataIncluded =  included?.filter {")
                 if (it.value.isNullable) {
                     codeBlockBuilder.indent().addStatement(
-                        "safeRelationships.%N?.data?.contains(ResourceIdentifier(it.type, it.id)) == true",
+                        "safeRelationships?.%N?.data?.contains(ResourceIdentifier(it.type, it.id)) == true",
                         it.key
                     )
                 } else {
