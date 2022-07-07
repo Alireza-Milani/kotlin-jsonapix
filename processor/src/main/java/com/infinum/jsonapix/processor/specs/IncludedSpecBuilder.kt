@@ -80,7 +80,7 @@ internal object IncludedSpecBuilder {
 
                 manyRelationships.forEachIndexed { index, property ->
                     if (property.type.isNullable) {
-                        codeBlockBuilder.add("*flatMap { it.${property.name}!!.map { it.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}() } }.toTypedArray()")
+                        codeBlockBuilder.add("*flatMap { it.${property.name}?.map { it.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}() } ?: listOf() }.toTypedArray()")
                     } else {
                         codeBlockBuilder.add("*flatMap { it.${property.name}.map { it.${JsonApiConstants.Members.TO_RESOURCE_OBJECT}() } }.toTypedArray()")
                     }
