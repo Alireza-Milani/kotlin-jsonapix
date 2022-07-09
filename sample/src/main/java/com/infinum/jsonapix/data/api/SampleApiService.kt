@@ -8,12 +8,12 @@ import retrofit2.http.GET
 interface SampleApiService {
 
     @Mock
-    @MockResponse(body = "responses/person.json")
+    @MockResponse(body = "responses/person_new.json")
     @GET("/person")
     suspend fun fetchPerson(): Person
 
     @Mock
-    @MockResponse(body = "responses/person_list.json")
+    @MockResponse(body = "responses/person_list_new.json")
     @GET("/persons")
     suspend fun fetchPersons(): List<Person>
 
