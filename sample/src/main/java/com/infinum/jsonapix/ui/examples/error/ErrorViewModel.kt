@@ -2,8 +2,10 @@ package com.infinum.jsonapix.ui.examples.error
 
 import com.infinum.jsonapix.data.api.SampleApiService
 import com.infinum.jsonapix.data.assets.JsonAssetReader
+import com.infinum.jsonapix.retrofit.asJsonXHttpException
 import com.infinum.jsonapix.ui.shared.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import retrofit2.HttpException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,11 +19,11 @@ class ErrorViewModel @Inject constructor(
         launch {
             showLoading()
             val bodyString = io { jsonAssetReader.readJsonAsset("responses/error.json") }
-            /*try {
+            try {
                 val person = io { sampleApiService.fetchError() }
             } catch (e: HttpException) {
-                showError(e.asJsonXHttpException().errors?.first()?.detail ?: "")
-            }*/
+                showError(e.asJsonXHttpException().error?.data?.detail ?: "")
+            }
 
             hideLoading()
         }

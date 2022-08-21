@@ -11,6 +11,8 @@ data class JsonXHttpException(val response: Response<*>?, val error: Error?)
 fun HttpException.asJsonXHttpException(): JsonXHttpException {
     return JsonXHttpException(
         response(),
-        response()?.errorBody()?.charStream()?.readText()?.let { Json.decodeFromString<Error>(it) }
+        response()?.errorBody()?.charStream()?.readText()?.let {
+            Json.decodeFromString<Error>(it)
+        }
     )
 }
