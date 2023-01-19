@@ -9,7 +9,7 @@ ext.versions = [
         "ktlint"       : "10.2.0",
         "retrofit"     : "2.9.0",
         "retromock"    : "1.1.1",
-        "hilt"         : "2.40.2",
+        "hilt"         : "2.43.2",
         "lifecycle"    : "2.4.0",
         "activity"     : "1.4.0",
         "fragment"     : "1.4.0",

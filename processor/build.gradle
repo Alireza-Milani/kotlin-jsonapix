@@ -31,7 +31,7 @@ dependencies {
     implementation packages.kotlin.core
     implementation packages.kotlin.poet
     implementation packages.kotlin.poet_metadata
-    compileOnly project(":annotations")
+    implementation project(":annotations")
     compileOnly project(":core")
     compileOnly packages.kotlin.serialization_core
 }
